@@ -1,0 +1,83 @@
+---
+title: "R Script using PhreeqC to Compute Solubility Curve"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Load Libraries
+ggplot2 is used for graphs, dplyr might be unused
+RODBC is used for database and sql--can be used to obtain data from M-Inference
+RDCOMClient is used to run PhreeqC
+strinr is used to formulate the input to PhreeqC
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(RODBC)
+library(RDCOMClient)
+library(stringr)
+```
+
+# Function to run PhreeqC 
+This function runs a PhreeqC code passed using the input_string. A PhreeqC database must also be specified. The output is a dataframe. PhreeqC output is controlled by the SELECTED_OUTPUT block in PhreeqC. The computer running this will need to have IPhreeqc installed.
+
+```{r}
+selected_array = function(db_path, input_string) {
+  dbase = COMCreate('IPhreeqcCOM.Object')
+  dbase$LoadDatabase(db_path)
+  dbase[["DumpStringOn"]] = TRUE
+  dbase$RunString(input_string)
+  selected_output = dbase$GetSelectedOutputArray()
+  dump_string = dbase$GetDumpString()
+  df = data.frame(sapply(selected_output, "[", 2:length(selected_output[[1]])))
+  colnames(df) = sapply(selected_output, "[", 1)
+  return(list(df, dump_string))
+}
+```
+
+# Use a for loop over pH values and compute Al solubility
+Assume Gibbsite is the solubility limiting phase. Use wateq4f for the database.
+
+```{r}
+# Specify database
+db_path = r"(C:\phreeqc\database\WATEQ4F.DAT)"
+# Create range of pH values in df
+df = data.frame(pH = seq(from = 4, to = 10, length.out = 61))
+# Add a column for Al_sol results to df
+df['Al_sol'] = NA
+# loop over pH values and perform PhreeqC calculation
+for (i in 1:nrow(df)){
+  # Get i-th pH value
+  pH = df$pH[i]
+  # Populate an PhreeqC input string with pH value
+  input_string = str_interp("
+  SOLUTION 1
+    units mol/kgw
+    pH ${pH}
+    Al 1e-4 Gibbsite 0
+  SELECTED_OUTPUT
+    -high_precision	true
+    -reset false
+    -totals Al
+  ")
+  # Execute PhreeqC computation. tryCatch returns FALSE if PhreeqC computation fails
+  temp_result = tryCatch({
+            selected_array(db_path, input_string)[[1]]
+            }, error = function(e) {FALSE})
+  # Record result if PhreeqC was successful
+  if (temp_result[1] != FALSE) {
+    df$Al_sol[i] = temp_result$`Al(mol/kgw)`}
+}
+```
+
+# Plot results
+
+```{r}
+ggplot(data = df, 
+       mapping = aes(x = pH, y = Al_sol)) + 
+  geom_line() +
+  scale_y_continuous (trans='log10') +
+  ylab("[Al] (M)")
+```
+
