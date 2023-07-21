@@ -8,6 +8,10 @@ output:
 # Load Libraries
 ggplot2 is used for graphs, dplyr might be unused
 
+Had to run the command below from the terminal to get this to knit
+Sys.setenv(RSTUDIO_PANDOC = "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools")
+
+
 
 ```{r}
 library(ggplot2)
