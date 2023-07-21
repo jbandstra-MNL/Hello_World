@@ -18,8 +18,6 @@ library(dplyr)
 This function runs a PhreeqC code passed using the input_string. A PhreeqC database must also be specified. The output is a dataframe. PhreeqC output is controlled by the SELECTED_OUTPUT block in PhreeqC. The computer running this will need to have IPhreeqc installed.
 
 ```{r}
-ggplot(mpg, aes(displ, hwy, colour = class)) + 
+ggplot(mpg, aes(displ, hwy, colour = class)) +
   geom_point()
 ```
-
-
